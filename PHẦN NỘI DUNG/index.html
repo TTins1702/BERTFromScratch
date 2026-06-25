@@ -129,7 +129,61 @@
         </div>
 
 
-        <h3>2.3. Bảng tổng hợp siêu tham số mô hình</h3>
+        <h3>2.3. Luồng dữ liệu</h3>
+        <figure>
+          <img src="assets/Lu%E1%BB%93ng%20d%E1%BB%AF%20li%E1%BB%87u.png" alt="Sơ đồ luồng dữ liệu của BERT" />
+          <figcaption>Hình 5: Sơ đồ luồng dữ liệu của BERT.</figcaption>
+        </figure>
+        <ul>
+          <li><strong><em>Bước 1 - Token hóa đầu vào:</em></strong> Văn bản được tách thành các token WordPiece, chèn thêm token <code>[CLS]</code> ở đầu và <code>[SEP]</code> ở cuối chuỗi hoặc phân tách câu (tối đa 512 token).</li>
+          <li><strong><em>Bước 2 - Chuyển đổi và cộng gộp vector:</em></strong> Mỗi token được biểu diễn bằng tổng vector của Token, Segment và Position Embeddings, sau đó được đưa qua $L$ lớp Transformer Encoder xếp chồng.</li>
+          <li><strong><em>Bước 3 - Học phi tuyến tính qua GELU:</em></strong> Các lớp Feed-Forward sử dụng hàm kích hoạt GELU thay cho ReLU giúp mô hình tối ưu ổn định hơn và hội tụ nhanh hơn.</li>
+          <li><strong><em>Bước 4 - Kết xuất đầu ra:</em></strong> Ma trận các vector biểu diễn ở lớp cuối cùng sẵn sàng làm đầu vào cho các lớp dự đoán phân loại tùy theo tác vụ fine-tuning cụ thể.</li>
+        </ul>
+
+        <h3>2.4. Fine-tuning</h3>
+        <p>
+          Quá trình fine-tuning BERT rất đơn giản và linh hoạt. Mô hình sử dụng chung cấu hình và tham số tiền huấn luyện, chỉ thay thế lớp đầu ra (output layer) tối giản tùy theo từng tác vụ cụ thể và tối ưu hóa toàn bộ mô hình (end-to-end):
+        </p>
+        
+        <h4>Mức câu (Sequence-level) - Ví dụ: Phân loại văn bản, Suy luận tự nhiên</h4>
+        <ul>
+          <li><strong><em>Đầu vào:</em></strong> Tùy thuộc vào tác vụ cụ thể:
+            <ul>
+              <li>Tác vụ một câu (ví dụ: Phân loại cảm xúc SST-2, Đánh giá ngữ pháp CoLA): <code>[CLS]</code> Câu đơn <code>[SEP]</code></li>
+              <li>Tác vụ cặp câu (ví dụ: Suy luận tự nhiên MNLI, QNLI): <code>[CLS]</code> Câu A <code>[SEP]</code> Câu B <code>[SEP]</code></li>
+            </ul>
+          </li>
+          <li><strong><em>Dự đoán:</em></strong> Sau khi chuỗi đi qua toàn bộ các tầng Transformer Encoder, ta lấy vector $C \in \mathbb{R}^H$ ứng với token đặc biệt <code>[CLS]</code> ở đầu ra. Vector này được xem là biểu diễn tổng hợp của toàn bộ chuỗi đầu vào. Để phân loại, ta đưa vector $C$ qua một lớp tuyến tính với ma trận trọng số $W \in \mathbb{R}^{K \times H}$ (với $K$ là số lượng nhãn lớp cần phân loại).</li>
+        </ul>
+        <p>
+          Xác suất dự đoán nhãn $k$ được tính bằng:
+        </p>
+        <div class="math-display">
+          $$P(y=k \mid X) = \mathrm{softmax}(C W^T)_k$$
+        </div>
+        <p>
+          Nhãn lớp có xác suất cao nhất sẽ được chọn làm kết quả phân loại cuối cùng.
+        </p>
+
+        <h4>Mức từ (Token-level) - Ví dụ: SQuAD QA</h4>
+        <ul>
+          <li><strong><em>Đầu vào:</em></strong> <code>[CLS]</code> Câu hỏi <code>[SEP]</code> Đoạn văn <code>[SEP]</code></li>
+        </ul>
+        <p>
+          Sau khi qua BERT, mỗi token trong chuỗi nhận được một vector biểu diễn ngữ cảnh: $T_1, T_2, \ldots, T_N$
+        </p>
+        <p>
+          <strong><em>Dự đoán:</em></strong> Trong bài toán Question Answering, mục tiêu là xác định vị trí bắt đầu (Start) và vị trí kết thúc (End) của câu trả lời trong đoạn văn. Để thực hiện điều này, mô hình học hai vector trọng số: $S \in \mathbb{R}^H$ và $E \in \mathbb{R}^H$ tương ứng với bộ phân loại vị trí bắt đầu và vị trí kết thúc. Xác suất từ thứ $i$ là điểm bắt đầu được tính bằng softmax trên toàn chuỗi:
+        </p>
+        <div class="math-display">
+          $$P_{i}^{(start)}=\frac{e^{S\cdot T_{i}}}{\sum_{j}e^{S\cdot T_{j}}}$$
+        </div>
+        <p>
+          Làm tương tự cho điểm kết thúc, mô hình tìm cặp vị trí $(i,j)$ sao cho $i \le j$ và $P_i^{(start)} \cdot P_j^{(end)}$ là lớn nhất. Đoạn văn bản từ token $i$ đến token $j$ sẽ được chọn làm câu trả lời cuối cùng.
+        </p>
+
+        <h3>2.5. Bảng tổng hợp siêu tham số mô hình</h3>
         <div class="table-container">
           <table>
              <thead>
@@ -186,60 +240,6 @@
             </tbody>
           </table>
         </div>
-
-        <h3>2.4. Luồng dữ liệu</h3>
-        <figure>
-          <img src="assets/Lu%E1%BB%93ng%20d%E1%BB%AF%20li%E1%BB%87u.png" alt="Sơ đồ luồng dữ liệu của BERT" />
-          <figcaption>Hình 5: Sơ đồ luồng dữ liệu của BERT.</figcaption>
-        </figure>
-        <ul>
-          <li><strong><em>Bước 1 - Token hóa đầu vào:</em></strong> Văn bản được tách thành các token WordPiece, chèn thêm token <code>[CLS]</code> ở đầu và <code>[SEP]</code> ở cuối chuỗi hoặc phân tách câu (tối đa 512 token).</li>
-          <li><strong><em>Bước 2 - Chuyển đổi và cộng gộp vector:</em></strong> Mỗi token được biểu diễn bằng tổng vector của Token, Segment và Position Embeddings, sau đó được đưa qua $L$ lớp Transformer Encoder xếp chồng.</li>
-          <li><strong><em>Bước 3 - Học phi tuyến tính qua GELU:</em></strong> Các lớp Feed-Forward sử dụng hàm kích hoạt GELU thay cho ReLU giúp mô hình tối ưu ổn định hơn và hội tụ nhanh hơn.</li>
-          <li><strong><em>Bước 4 - Kết xuất đầu ra:</em></strong> Ma trận các vector biểu diễn ở lớp cuối cùng sẵn sàng làm đầu vào cho các lớp dự đoán phân loại tùy theo tác vụ fine-tuning cụ thể.</li>
-        </ul>
-
-        <h3>2.5. Fine-tuning</h3>
-        <p>
-          Quá trình fine-tuning BERT rất đơn giản và linh hoạt. Mô hình sử dụng chung cấu hình và tham số tiền huấn luyện, chỉ thay thế lớp đầu ra (output layer) tối giản tùy theo từng tác vụ cụ thể và tối ưu hóa toàn bộ mô hình (end-to-end):
-        </p>
-        
-        <h4>Mức câu (Sequence-level) - Ví dụ: Phân loại văn bản, Suy luận tự nhiên</h4>
-        <ul>
-          <li><strong><em>Đầu vào:</em></strong> Tùy thuộc vào tác vụ cụ thể:
-            <ul>
-              <li>Tác vụ một câu (ví dụ: Phân loại cảm xúc SST-2, Đánh giá ngữ pháp CoLA): <code>[CLS]</code> Câu đơn <code>[SEP]</code></li>
-              <li>Tác vụ cặp câu (ví dụ: Suy luận tự nhiên MNLI, QNLI): <code>[CLS]</code> Câu A <code>[SEP]</code> Câu B <code>[SEP]</code></li>
-            </ul>
-          </li>
-          <li><strong><em>Dự đoán:</em></strong> Sau khi chuỗi đi qua toàn bộ các tầng Transformer Encoder, ta lấy vector $C \in \mathbb{R}^H$ ứng với token đặc biệt <code>[CLS]</code> ở đầu ra. Vector này được xem là biểu diễn tổng hợp của toàn bộ chuỗi đầu vào. Để phân loại, ta đưa vector $C$ qua một lớp tuyến tính với ma trận trọng số $W \in \mathbb{R}^{K \times H}$ (với $K$ là số lượng nhãn lớp cần phân loại).</li>
-        </ul>
-        <p>
-          Xác suất dự đoán nhãn $k$ được tính bằng:
-        </p>
-        <div class="math-display">
-          $$P(y=k \mid X) = \mathrm{softmax}(C W^T)_k$$
-        </div>
-        <p>
-          Nhãn lớp có xác suất cao nhất sẽ được chọn làm kết quả phân loại cuối cùng.
-        </p>
-
-        <h4>Mức từ (Token-level) - Ví dụ: SQuAD QA</h4>
-        <ul>
-          <li><strong><em>Đầu vào:</em></strong> <code>[CLS]</code> Câu hỏi <code>[SEP]</code> Đoạn văn <code>[SEP]</code></li>
-        </ul>
-        <p>
-          Sau khi qua BERT, mỗi token trong chuỗi nhận được một vector biểu diễn ngữ cảnh: $T_1, T_2, \ldots, T_N$
-        </p>
-        <p>
-          <strong><em>Dự đoán:</em></strong> Trong bài toán Question Answering, mục tiêu là xác định vị trí bắt đầu (Start) và vị trí kết thúc (End) của câu trả lời trong đoạn văn. Để thực hiện điều này, mô hình học hai vector trọng số: $S \in \mathbb{R}^H$ và $E \in \mathbb{R}^H$ tương ứng với bộ phân loại vị trí bắt đầu và vị trí kết thúc. Xác suất từ thứ $i$ là điểm bắt đầu được tính bằng softmax trên toàn chuỗi:
-        </p>
-        <div class="math-display">
-          $$P_{i}^{(start)}=\frac{e^{S\cdot T_{i}}}{\sum_{j}e^{S\cdot T_{j}}}$$
-        </div>
-        <p>
-          Làm tương tự cho điểm kết thúc, mô hình tìm cặp vị trí $(i,j)$ sao cho $i \le j$ và $P_i^{(start)} \cdot P_j^{(end)}$ là lớn nhất. Đoạn văn bản từ token $i$ đến token $j$ sẽ được chọn làm câu trả lời cuối cùng.
-        </p>
         
         <h2>3. Thực nghiệm và kết quả</h2>
         <p>
