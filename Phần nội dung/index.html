@@ -39,7 +39,7 @@
           <figcaption>Hình 1: So sánh kiến trúc tiền huấn luyện của BERT, ELMo và GPT (được trích từ Hình 3 trong bài báo gốc).</figcaption>
         </figure>
         <p>
-          Như minh họa ở Hình 1, ELMo chỉ thực hiện ghép nối nông ở tầng cuối, trong khi GPT bị giới hạn bởi ngữ cảnh một chiều. BERT ra đời giải quyết triệt để vấn đề này nhờ cơ chế tự chú ý hai chiều sâu ở mọi lớp nhờ vào MLM.
+          Như minh họa ở Hình 1, ELMo chỉ thực hiện ghép nối nông ở tầng cuối, trong khi GPT bị giới hạn bởi ngữ cảnh một chiều. BERT ra đời giải quyết triệt để vấn đề này nhờ cơ chế tự chú ý hai chiều sâu ở mọi lớp thông qua MLM.
         </p>
 
         <h3>Giải pháp cốt lõi</h3>
@@ -62,13 +62,6 @@
           <figcaption>Hình 3: Sơ đồ một khối kiến trúc Transformer Encoder của BERT.</figcaption>
         </figure>
         <p>
-          BERT được xây dựng từ một chuỗi các lớp Encoder xếp chồng lên nhau. Cụ thể:
-        </p>
-        <ul>
-          <li><strong><em>BERT-Base:</em></strong> gồm 12 lớp ($L=12$), kích thước vector ẩn $H=768$, và 12 đầu tự chú ý ($A=12$), tổng cộng khoảng 110 triệu tham số (110M parameters).</li>
-          <li><strong><em>BERT-Large:</em></strong> gồm 24 lớp ($L=24$), kích thước vector ẩn $H=1024$, và 16 đầu tự chú ý ($A=16$), tổng cộng khoảng 340 triệu tham số (340M parameters).</li>
-        </ul>
-        <p>
           Mỗi lớp Encoder có cấu trúc chuẩn của Transformer bao gồm hai khối thành phần chính: cơ chế <strong>Multi-Head Self-Attention</strong> và mạng <strong>Feed-Forward (FFN)</strong>. Đi kèm với mỗi thành phần là các kết nối tắt (residual connections) và chuẩn hóa lớp (layer normalization).
         </p>
 
@@ -81,7 +74,7 @@
           Biểu diễn đầu vào của mỗi token được cấu thành từ việc cộng tổng ba loại embedding tương ứng:
         </p>
         <ul>
-          <li><strong><em>Token Embeddings:</em></strong> Sử dụng bộ từ điển WordPiece với kích thước khoảng 30.000 token, giúp xử lý tốt các từ hiếm và subword bằng cách tách từ thành các phần nhỏ hơn (subwords).</li>
+          <li><strong><em>Token Embeddings:</em></strong> Sử dụng bộ từ điển WordPiece với kích thước khoảng 30.000 token</li>
           <li><strong><em>Segment Embeddings:</em></strong> Giúp mô hình phân biệt các câu khác nhau trong đầu vào (ví dụ: biểu diễn câu A hoặc câu B trong tác vụ cặp câu).</li>
           <li><strong><em>Position Embeddings:</em></strong> Biểu diễn vị trí của mỗi token trong chuỗi, hỗ trợ độ dài chuỗi tối đa là 512 token.</li>
         </ul>
@@ -94,9 +87,12 @@
         </ul>
 
         <h3>2.2. Tiền huấn luyện không giám sát</h3>
+        <p>
+          BERT được tiền huấn luyện trên tập dữ liệu lớn kết hợp từ BooksCorpus (800 triệu từ) và Wikipedia tiếng Anh (2,5 tỷ từ), đạt quy mô tổng cộng khoảng 3,3 tỷ từ. Giai đoạn tiền huấn luyện này bao gồm hai tác vụ đồng thời:
+        </p>
         <h4>Task 1: Masked Language Model (MLM)</h4>
         <p>
-          Trong quá trình tiền huấn luyện, 15% token được chọn ngẫu nhiên để che. Trong số đó, 80% được thay bằng [MASK], 10% được thay bằng token ngẫu nhiên và 10% giữ nguyên để giảm sai khác giữa pre-training và fine-tuning.
+          Trong quá trình tiền huấn luyện, 15% token được chọn ngẫu nhiên để che. Trong số đó, 80% được thay bằng <code>[MASK]</code>, 10% được thay bằng token ngẫu nhiên và 10% giữ nguyên để giảm sai khác giữa pre-training và fine-tuning.
         </p>
         <p>
           Hàm mất mát được định nghĩa như sau:
@@ -132,19 +128,66 @@
           $$\mathcal{L}_{total} = \mathcal{L}_{MLM} + \mathcal{L}_{NSP}$$
         </div>
 
-        <h4>Cấu hình tiền huấn luyện (Pre-training Setup)</h4>
-        <p>
-          BERT được tiền huấn luyện trên tập dữ liệu lớn kết hợp từ BooksCorpus (800 triệu từ) và Wikipedia tiếng Anh (2,5 tỷ từ), đạt quy mô tổng cộng khoảng 3,3 tỷ từ.
-        </p>
-        <p>
-          Quá trình huấn luyện sử dụng kích thước batch lớn (256 sequence, tương đương 128.000 token/batch) và kéo dài khoảng 1 triệu bước (steps), tương đương với 40 epochs trên tập dữ liệu. Cụ thể:
-        </p>
-        <ul>
-          <li><strong><em>BERT-Base:</em></strong> được huấn luyện trên 4 chip Cloud TPU v3 (16 chip TPU đơn) trong vòng 4 ngày.</li>
-          <li><strong><em>BERT-Large:</em></strong> được huấn luyện trên 16 chip Cloud TPU v3 (64 chip TPU đơn) trong vòng 4 ngày.</li>
-        </ul>
 
-        <h3>2.3. Luồng dữ liệu</h3>
+        <h3>2.3. Bảng tổng hợp siêu tham số mô hình</h3>
+        <div class="table-container">
+          <table>
+             <thead>
+              <tr>
+                <th style="width: 25%;">Giai đoạn</th>
+                <th style="width: 35%;">Siêu tham số (Hyperparameter)</th>
+                <th style="width: 40%;">Giá trị cấu hình</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td rowspan="2"><strong>Cấu hình kiến trúc</strong></td>
+                <td>Kích thước mô hình ($L, H, A$)</td>
+                <td>
+                  <strong>BERT-Base:</strong> $L=12, H=768, A=12$ (110M params)<br>
+                  <strong>BERT-Large:</strong> $L=24, H=1024, A=16$ (340M params)
+                </td>
+              </tr>
+              <tr>
+                <td>Hàm kích hoạt &amp; Dropout</td>
+                <td>
+                  GELU<br>
+                  Tỷ lệ Dropout: 0.1 (tất cả các tầng)
+                </td>
+              </tr>
+              <tr>
+                <td rowspan="3"><strong>Giai đoạn Pre-training</strong></td>
+                <td>Thuật toán &amp; Learning Rate</td>
+                <td>
+                  Adam ($\beta_1=0.9, \beta_2=0.999$, L2 weight decay: 0.01)<br>
+                  LR: 1e-4
+                </td>
+              </tr>
+              <tr>
+                <td>Chiến lược Learning Rate</td>
+                <td>Warmup trong 10.000 bước đầu, giảm dần tuyến tính</td>
+              </tr>
+              <tr>
+                <td>Batch size &amp; Huấn luyện</td>
+                <td>
+                  Batch size: 256 chuỗi (128k tokens)<br>
+                  Huấn luyện trong 1M bước (~40 epochs)
+                </td>
+              </tr>
+              <tr>
+                <td><strong>Giai đoạn Fine-tuning</strong></td>
+                <td>Các dải tham số khuyến nghị</td>
+                <td>
+                  Batch size: 16, 32<br>
+                  Learning Rate: 5e-5, 3e-5, 2e-5<br>
+                  Epochs: 2, 3, 4
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>2.4. Luồng dữ liệu</h3>
         <figure>
           <img src="assets/Lu%E1%BB%93ng%20d%E1%BB%AF%20li%E1%BB%87u.png" alt="Sơ đồ luồng dữ liệu của BERT" />
           <figcaption>Hình 5: Sơ đồ luồng dữ liệu của BERT.</figcaption>
@@ -156,7 +199,7 @@
           <li><strong><em>Bước 4 - Kết xuất đầu ra:</em></strong> Ma trận các vector biểu diễn ở lớp cuối cùng sẵn sàng làm đầu vào cho các lớp dự đoán phân loại tùy theo tác vụ fine-tuning cụ thể.</li>
         </ul>
 
-        <h3>2.4. Fine-tuning</h3>
+        <h3>2.5. Fine-tuning</h3>
         <p>
           Quá trình fine-tuning BERT rất đơn giản và linh hoạt. Mô hình sử dụng chung cấu hình và tham số tiền huấn luyện, chỉ thay thế lớp đầu ra (output layer) tối giản tùy theo từng tác vụ cụ thể và tối ưu hóa toàn bộ mô hình (end-to-end):
         </p>
@@ -181,26 +224,21 @@
           Nhãn lớp có xác suất cao nhất sẽ được chọn làm kết quả phân loại cuối cùng.
         </p>
 
-        <h4>Mức từ (Token-level) - Ví dụ: Trả lời câu hỏi (SQuAD QA)</h4>
+        <h4>Mức từ (Token-level) - Ví dụ: SQuAD QA</h4>
         <ul>
-          <li><strong><em>Đầu vào:</em></strong> <code>[CLS]</code> Câu hỏi <code>[SEP]</code> Đoạn văn chứa câu trả lời <code>[SEP]</code></li>
-          <li><strong><em>Sau khi đi qua BERT:</em></strong> Mỗi token thứ $i$ trong chuỗi nhận được một vector biểu diễn ngữ cảnh cuối cùng: $T_i \in \mathbb{R}^H$ ($i = 1, 2, \ldots, N$).</li>
-          <li><strong><em>Dự đoán:</em></strong> Đối với bài toán trả lời câu hỏi, mục tiêu là xác định vị trí bắt đầu (Start) và vị trí kết thúc (End) của câu trả lời trong đoạn văn. Ta học thêm hai vector trọng số $S \in \mathbb{R}^H$ (dành cho điểm bắt đầu) và $E \in \mathbb{R}^H$ (dành cho điểm kết thúc).</li>
+          <li><strong><em>Đầu vào:</em></strong> <code>[CLS]</code> Câu hỏi <code>[SEP]</code> Đoạn văn <code>[SEP]</code></li>
         </ul>
         <p>
-          Xác suất token thứ $i$ là vị trí bắt đầu của câu trả lời được tính bằng hàm softmax trên toàn bộ chuỗi:
+          Sau khi qua BERT, mỗi token trong chuỗi nhận được một vector biểu diễn ngữ cảnh: $T_1, T_2, \ldots, T_N$
+        </p>
+        <p>
+          <strong><em>Dự đoán:</em></strong> Trong bài toán Question Answering, mục tiêu là xác định vị trí bắt đầu (Start) và vị trí kết thúc (End) của câu trả lời trong đoạn văn. Để thực hiện điều này, mô hình học hai vector trọng số: $S \in \mathbb{R}^H$ và $E \in \mathbb{R}^H$ tương ứng với bộ phân loại vị trí bắt đầu và vị trí kết thúc. Xác suất từ thứ $i$ là điểm bắt đầu được tính bằng softmax trên toàn chuỗi:
         </p>
         <div class="math-display">
-          $$P_i^{(start)} = \frac{e^{S \cdot T_i}}{\sum_j e^{S \cdot T_j}}$$
+          $$P_{i}^{(start)}=\frac{e^{S\cdot T_{i}}}{\sum_{j}e^{S\cdot T_{j}}}$$
         </div>
         <p>
-          Xác suất token thứ $j$ là vị trí kết thúc được tính tương tự bằng:
-        </p>
-        <div class="math-display">
-          $$P_j^{(end)} = \frac{e^{E \cdot T_j}}{\sum_k e^{E \cdot T_k}}$$
-        </div>
-        <p>
-          Trong quá trình suy luận (inference), mô hình sẽ tìm cặp chỉ số $(i, j)$ sao cho $i \le j$ và tích xác suất $P_i^{(start)} \times P_j^{(end)}$ đạt giá trị lớn nhất. Đoạn văn bản từ token thứ $i$ đến token thứ $j$ sẽ là câu trả lời được lựa chọn.
+          Làm tương tự cho điểm kết thúc, mô hình tìm cặp vị trí $(i,j)$ sao cho $i \le j$ và $P_i^{(start)} \cdot P_j^{(end)}$ là lớn nhất. Đoạn văn bản từ token $i$ đến token $j$ sẽ được chọn làm câu trả lời cuối cùng.
         </p>
         
         <h2>3. Thực nghiệm và kết quả</h2>
@@ -271,6 +309,10 @@
         <p>
           Khi sử dụng BERT làm bộ trích xuất đặc trưng cố định (tương tự ELMo), việc kết hợp các trạng thái ẩn từ 4 lớp cuối của BERT-Base làm đầu vào cho mạng BiLSTM đạt 96.1 F1 trên tác vụ NER (CoNLL-2003), chỉ kém 0.3 F1 so với phương pháp fine-tuning toàn bộ mô hình (96.4 F1).
         </p>
+        <figure>
+          <img src="assets/Table7%20CoNLL-2003NamedEntityRecognitionre.PNG" alt="Kết quả Feature-based approach với BERT" />
+          <figcaption>Bảng 7: Kết quả thử nghiệm trên tác vụ NER CoNLL-2003 sử dụng các cách tiếp cận dựa trên đặc trưng khác nhau.</figcaption>
+        </figure>
 
         <h2>5. Kết luận</h2>
         <p>
